@@ -14,7 +14,7 @@
         }
     ],
     "require": {},
-    "extras": {
+    "extra": {
         "laravel": {
             "providers": [
                 "Hdruk\\LaravelPluginCore\\PluginCoreServiceProvider"

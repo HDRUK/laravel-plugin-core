@@ -16,13 +16,16 @@ class PluginCoreServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/plugin-core.php', 'plugin-core');
     }
 
-    public function boot(PluginManager $plugins)
+    public function boot()
     {
         $this->publishes([
             __DIR__ . '/../config/plugin-core.php' => config_path('plugin-core.php'),
         ], 'plugin-core-config');
 
         $this->app->router->aliasMiddleware('inject.plugins', \Hdruk\LaravelPluginCore\Middleware\InjectPlugins::class);
+
+        // resolve PluginManager from container
+        $plugins = $this->app->make(PluginManager::class);
 
         foreach ($plugins->all() as $plugin) {
             if (!empty($plugin['service_provider'])) {
