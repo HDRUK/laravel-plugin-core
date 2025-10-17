@@ -13,5 +13,12 @@
             "email": "loki.sinclair@hdruk.ac.uk"
         }
     ],
-    "require": {}
+    "require": {},
+    "extras": {
+        "laravel": {
+            "providers": [
+                "Hdruk\\LaravelPluginCore\\PluginCoreServiceProvider"
+            ]
+        }
+    }
 }
