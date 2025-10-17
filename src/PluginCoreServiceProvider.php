@@ -1,9 +1,9 @@
 <?php
 
-namespace Hdruk\PluginCore;
+namespace Hdruk\LaravelPluginCore;
 
 use Illuminate\Support\ServiceProvider;
-use Hdruk\PluginCore\Services\PluginManager;
+use Hdruk\LaravelPluginCore\Services\PluginManager;
 
 class PluginCoreServiceProvider extends ServiceProvider
 {
@@ -18,7 +18,7 @@ class PluginCoreServiceProvider extends ServiceProvider
 
     public function boot(PluginManager $plugins)
     {
-        $this->app->router->aliasMiddleware('inject.plugins', \Hdruk\PluginCore\Middleware\InjectPlugins::class);
+        $this->app->router->aliasMiddleware('inject.plugins', \Hdruk\LaravelPluginCore\Middleware\InjectPlugins::class);
 
         foreach ($plugins->all() as $plugin) {
             if (!empty($plugin['service_provider'])) {

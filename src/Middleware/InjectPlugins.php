@@ -1,10 +1,10 @@
 <?php
 
-namespace Hdruk\PluginCore\Middleware;
+namespace Hdruk\LaravelPluginCore\Middleware;
 
 use Closure;
 use Illuminate\Support\Str;
-use Hdruk\PluginCore\Services\PluginManager;
+use Hdruk\LaravelPluginCore\Services\PluginManager;
 use Illuminate\Pipeline\Pipeline;
 use Illuminate\Http\Request;
 

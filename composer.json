@@ -1,0 +1,17 @@
+{
+    "name": "hdruk/laravel-plugin-core",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Hdruk\\LaravelPluginCore\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Loki Sinclair",
+            "email": "loki.sinclair@hdruk.ac.uk"
+        }
+    ],
+    "require": {}
+}

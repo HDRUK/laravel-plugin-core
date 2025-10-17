@@ -1,6 +1,6 @@
 <?php
 
-namespace Hdruk\PluginCore\Services;
+namespace Hdruk\LaravelPluginCore\Services;
 
 use Illuminate\Support\Facades\File;
 
