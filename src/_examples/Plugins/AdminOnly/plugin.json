@@ -1,0 +1,21 @@
+{
+    "name": "Admin Only",
+    "slug": "admin-only",
+    "version": "1.0.0",
+    "service_provider": "\\Plugins\\AdminOnly\\PluginServiceProvider",
+    "activation": {
+        "models": [
+            "App\\Models\\User"
+        ],
+        "routes": [
+            "api/users/*",
+            "api/admin/*"
+        ],
+        "conditions": [
+            "user.is_admin"
+        ]
+    },
+    "middleware": [
+        "\\Plugins\\AdminOnly\\Middleware\\RestrictToAdmin"
+    ]
+}
