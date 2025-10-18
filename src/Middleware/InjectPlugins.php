@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 use Hdruk\LaravelPluginCore\Services\PluginManager;
 use Illuminate\Pipeline\Pipeline;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 class InjectPlugins
 {
@@ -14,10 +15,12 @@ class InjectPlugins
 
     public function handle(Request $request, Closure $next)
     {
-        $route = $request->route();
+        $route = $request->route() ?? Route::current();
         $routeName = $route?->getName();
-        $routeUri = $route?->uri();
+        $routeUri = $route?->uri() ?? $request->path();
         $action = $route?->getActionName();
+
+        \Log::info('Route URI InjectPlugins: ' . $routeUri);
 
         // Collect applicable middleware from plugins
         $middlewareStack = [];
@@ -25,21 +28,32 @@ class InjectPlugins
         foreach ($this->plugins->all() as $plugin) {
             // Skip broken plugins unable to be booted
             if (!empty($plugin['broken'])) {
+                \Log::error('Plugin broken: ' . json_encode($plugin));
                 continue;
             }
 
+            $modelClass = $this->resolveModelFromRoute($route);
+
             if ($this->shouldActivate($plugin, $routeName, $routeUri, $action, $modelClass, $request)) {
                 foreach ($plugin['middleware'] ?? [] as $mw) {
+                    \Log::info('Checking middleware class_exists: ' . $mw . ' => ' . (class_exists($mw) ? 'true' : 'false'));
+
                     if (class_exists($mw)) {
-                        $middlewareStat[] = $mw;
+                        $middlewareStack[] = $mw;
+                    } else {
+                        \Log::error('Class doesnt exist: ' . $mw);
                     }
                 }
+
+                \Log::info(json_encode($middlewareStack));
             }
         }
 
+        \Log::info('Loaded plugins: '.json_encode(array_map(fn($p)=>$p['slug'],$this->plugins->all())));
+
         // Build a local pipeline that runs plugin middleware in order
         if (!empty($middlewareStack)) {
-            return app(Pipeline:clas)
+            return app(Pipeline::class)
                 ->send($request)
                 ->through($this->safeMiddleware($middlewareStack))
                 ->then(fn ($req) => $next($req));
@@ -52,14 +66,19 @@ class InjectPlugins
     {
         $rules = $plugin['activation'] ?? [];
 
+        \Log::info('InjectPlugins - shouldActivate on ' . $request->uri() . ' ' . $rules['routes'][0]);
+
         // disabled flag
-        if (!empty($plugin['disabled'])) {
+        if (isset($plugin['disabled']) && $plugin['disabled'] === true) {
+            \Log::info('InjectPlugins - Plugin ' . $plugin['slug'] . ' is disabled');
             return false;
         }
 
         // routes (supports wildcard)
         if (!empty($rules['routes'])) {
             foreach ((array)$rules['routes'] as $pattern) {
+                \Log::info("InjectPlugins - checking {$routeUri} for {$pattern}");
+
                 if ($routeUri && Str::is($pattern, $routeUri)) {
                     return true;
                 }

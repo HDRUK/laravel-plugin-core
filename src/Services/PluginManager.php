@@ -15,32 +15,38 @@ class PluginManager
 
     protected function discoverPlugins(): void
     {
-        if (!File::exists($this->pluginPath)) {
-            return;
-        }
+        if (! File::exists($this->pluginPath)) return;
 
         $dirs = File::directories($this->pluginPath);
 
         foreach ($dirs as $dir) {
-            $manifest = $dir . DIRECTORY_SEPARATOR . 'plugin.json';
-            if (File::exists($manifest)) {
+            $manifestPath = $dir . DIRECTORY_SEPARATOR . 'plugin.json';
+            if (! File::exists($manifestPath)) continue;
 
-                try {
-                    $config = json_decode(File::get($manifest), true, 512, JSON_THROW_ON_ERROR);
-                    $this->validateManifest($config, $dir);
-
-                    $config['path'] = $dir;
-                    // normalise activation rules
-                    $config['activation'] = $config['activation'] ?? [];
-                    $config['middleware'] = $config['middleware'] ?? [];
-
-                    $this->plugins[$config['slug']] = $config;
-
-                } catch (\Throwable $e) {
-                    \Log::error("PluginCore - Invalid plugin manifest in {$dir}: {$e->getMessage()}");
-                    continue;
-                }
+            try {
+                $config = json_decode(File::get($manifestPath), true, 512, JSON_THROW_ON_ERROR);
+            } catch (\Throwable $e) {
+                \Log::error("[PluginCore] Invalid manifest in {$dir}: {$e->getMessage()}");
+                continue;
             }
+
+            $config['path'] = $dir;
+
+            // Register PSR-4 autoloader dynamically
+            $ns = rtrim($config['namespace'] ?? 'Plugins\\' . basename($dir) . '\\', '\\');
+            $srcPath = $dir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR;
+
+            spl_autoload_register(function ($class) use ($ns, $srcPath) {
+                if (str_starts_with($class, $ns)) {
+                    $relative = substr($class, strlen($ns));
+                    $file = $srcPath . str_replace('\\', DIRECTORY_SEPARATOR, $relative) . '.php';
+                    if (is_file($file)) {
+                        require_once $file;
+                    }
+                }
+            });
+
+            $this->plugins[$config['slug'] ?? basename($dir)] = $config;
         }
     }
 
@@ -73,5 +79,10 @@ class PluginManager
             $this->plugins[$slug]['broken'] = true;
             $this->plugins[$slug]['error'] = $e->getMessage();
         }
+    }
+
+    public function isBroken(string $slug): bool
+    {
+        return $this->plugins[$slug]['broken'] ?? false;
     }
 }
