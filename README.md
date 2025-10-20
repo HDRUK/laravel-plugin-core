@@ -1,30 +1,126 @@
 # laravel-plugin-core
-Provides a core modular Plugin system to apply to Laravel API projects
+A small, framework-agnostic-ish Laravel package that provides a lightweight plugin system for API projects.
 
-1. Add the package provider (Hdruk\LaravelPluginCore\PluginCoreServiceProvider) to host app providers or rely on package discovery.
-2. Ensure config/plugin-core.php 'path' points to your plugins directory.
-3. Add the middleware to the api globally (so it runs for every API request):
+#### Key responsibilities:
+
+- Discover plugin folders under a configured path.
+- Register plugin service providers.
+- Run plugin middleware conditionally per-request.
+
+#### Core classes:
+
+- [Hdruk\LaravelPluginCore\PluginCoreServiceProvider](https://github.com/HDRUK/laravel-plugin-core/blob/main/src/PluginCoreServiceProvider.php)
+- [Hdruk\LaravelPluginCore\Middleware\InjectPlugins](https://github.com/HDRUK/laravel-plugin-core/blob/main/src/Middleware/InjectPlugins.php)
+- [Hdruk\LaravelPluginCore\Services\PluginManager](https://github.com/HDRUK/laravel-plugin-core/blob/main/src/Services/PluginManager.php)
+
+#### Configuration:
+
+- Default config file: `plugin-core.php`
+- Example plugin manifest: plugin.json
+- Example plugin provider: Plugins\AdminOnly\PluginServiceProvider
+- Example plugin middleware: Plugins\AdminOnly\Middleware\RestrictToAdmin
+
+### 1) Installing
+Install via composer:
 
 ```php
- // Laravel 10.x
- // app/Http/Kernel.php
-
- 'api' => [ ..., \Hdruk\LaravelPluginCore\Middleware\InjectPlugins::class, ... ]
-
- // Laravel 11+
- // bootstrap/app.php
-
- $middleware->append(\Hdruk\LaravelPluginCore\Middleware\InjectPlugins::class);
+composer require hdruk/laravel-plugin-core
 ```
 
-4. Place plugins under base_path('plugins'). Each plugin needs plugin.json and (optionally) a service provider and middleware.
-5. Consider persistence for enabled/disabled state (file flag, or DB table). The manager currently only discovers packages.
-6. Publish the config and update accordingly:
+Or add the package to your composer.json and run composer update:
+
+```json
+{
+  "require": {
+    "hdruk/laravel-plugin-core": "^1.0"
+  }
+}
+```
+
+The package provides auto-discovery via composer.json. If you prefer manual registration, add the provider:
+
+Publish the configuration to choose your plugins directory:
 
 ```php
-    php artisan vendor:publish --tag=plugin-core-config
+php artisan vendor:publish --tag=plugin-core-config
+# This will publish config/plugin-core.php
 ```
 
-# Next steps and improvements:
-- Persist enable/disable state and plugin order to control middleware priority.
-- Add tests and error handling to ensure broken plugins cannot break the host app.
+By default the package reads `config('plugin-core.path')` (see config/plugin-core.php).
+
+### 2) Implementing plugins
+Overview:
+
+Plugins are placed under the directory configured by `plugin-core.path` (default: base_path('plugins')).
+Each plugin is a folder that contains a `plugin.json` manifest and an optional `src` directory with a ServiceProvider and middleware.
+
+#### Minimum manifest (plugin.json):
+
+- slug — unique identifier (recommended)
+- service_provider — fully-qualified provider class to register
+- middleware — array of FQCN middleware to run when the plugin activates
+- activation — rules to decide when to run middleware (routes, models, conditions, etc.)
+
+See the example manifest: [plugin.json](https://github.com/HDRUK/laravel-plugin-core/blob/main/src/_examples/Plugins/AdminOnly/plugin.json)
+
+## Example plugin layout:
+
+```
+plugins/
+  admin-only/
+    plugin.json
+    src/
+      PluginServiceProvider.php
+      Middleware/
+        RestrictToAdmin.php
+```
+
+Implement a ServiceProvider in your plugin:
+
+Register routes, publish resources or bind services within your plugin provider.
+
+Example: [Plugins\AdminOnly\PluginServiceProvider](https://github.com/HDRUK/laravel-plugin-core/blob/main/src/_examples/Plugins/AdminOnly/src/PluginServiceProvider.php)
+
+Implement middleware in your plugin:
+
+Middleware classes should expose `handle(Request $request, Closure $next)` as usual.
+
+Example: [Plugins\AdminOnly\Middleware\RestrictToAdmin](https://github.com/HDRUK/laravel-plugin-core/blob/main/src/_examples/Plugins/AdminOnly/src/Middleware/RestrictToAdmin.php)
+
+Activate plugin middleware per-request
+
+The package middleware [Hdruk\LaravelPluginCore\Middleware\InjectPlugins](https://github.com/HDRUK/laravel-plugin-core/blob/main/src/Middleware/InjectPlugins.php) inspects each request and evaluates plugin activation rules.
+
+To enable injection, add the middleware to your API stack:
+Laravel 10 (Kernel):
+```php
+<?php
+// app/Http/Kernel.php
+'api' => [
+    // ...
+    \Hdruk\LaravelPluginCore\Middleware\InjectPlugins::class,
+],
+```
+
+Laravel 11+ (bootstrap):
+```php
+<?php
+// bootstrap/app.php
+$middleware->append(\Hdruk\LaravelPluginCore\Middleware\InjectPlugins::class);
+```
+
+Activation rules supported (examples from `InjectPlugins`):
+
+- routes: wildcards supported (e.g. `api/admin/*`)
+- actions: controller/action pattern matching
+- models: match route model binding or model param names (e.g. `App\Models\User`)
+- conditions: simple expressions such as `user.is_admin` or `request.has('flag')`
+
+### Notes and next steps:
+
+Currently the [Hdruk\LaravelPluginCore\Services\PluginManager](https://github.com/HDRUK/laravel-plugin-core/blob/main/src/Services/PluginManager.php) only discovers plugins and registers autoloaders and providers.
+
+- (TODO) - Persisted enable/disable state and ordering are not implemented.
+- The manager will mark plugins as broken when provider registration fails; broken plugins are skipped during middleware injection.
+- Consider adding persistence for enable/disable and middleware ordering to control priority and lifecycle.
+If you need a working example, inspect the example plugin at AdminOnly.
